@@ -1,0 +1,54 @@
+#!/bin/bash
+####
+## Load Madule
+modprobe ipt_recent
+## Rule
+echo "Block TCP-CONNECT scan attempts (SYN bit packets)"
+iptables -A INPUT -p tcp --syn -j DROP
+
+echo "Block TCP-SYN scan attempts (only SYN bit packets)"
+iptables -A INPUT -m conntrack --ctstate NEW -p tcp --tcp-flags SYN,RST,ACK,FIN,URG,PSH SYN -j DROP
+
+echo "Block TCP-FIN scan attempts (only FIN bit packets)"
+iptables -A INPUT -m conntrack --ctstate NEW -p tcp --tcp-flags SYN,RST,ACK,FIN,URG,PSH FIN -j DROP
+
+echo "Block TCP-ACK scan attempts (only ACK bit packets)"
+iptables -A INPUT -m conntrack --ctstate NEW -p tcp --tcp-flags SYN,RST,ACK,FIN,URG,PSH ACK -j DROP
+
+echo "Block TCP-NULL scan attempts (packets without flag)"
+iptables -A INPUT -m conntrack --ctstate INVALID -p tcp --tcp-flags ! SYN,RST,ACK,FIN,URG,PSH SYN,RST,ACK,FIN,URG,PSH -j DROP
+
+echo "Block "Christmas Tree" TCP-XMAS scan attempts (packets with FIN, URG, PSH bits)"
+iptables -A INPUT -m conntrack --ctstate NEW -p tcp --tcp-flags SYN,RST,ACK,FIN,URG,PSH FIN,URG,PSH -j DROP
+
+echo "Block DOS - Ping of Death"
+iptables -A INPUT -p ICMP --icmp-type echo-request -m length --length 60:65535 -j ACCEPT
+
+echo "Block DOS - Teardrop"
+iptables -A INPUT -p UDP -f -j DROP
+
+echo "Block DDOS - SYN-flood"
+iptables -A INPUT -p TCP --syn -m iplimit --iplimit-above 9 -j DROP
+
+echo "Block DDOS - Smurf"
+iptables -A INPUT -m pkttype --pkt-type broadcast -j DROP
+iptables -A INPUT -p ICMP --icmp-type echo-request -m pkttype --pkttype broadcast -j DROP
+iptables -A INPUT -p ICMP --icmp-type echo-request -m limit --limit 3/s -j ACCEPT
+
+echo "Block DDOS - UDP-flood"
+iptables -A INPUT -p UDP --dport 7 -j DROP
+iptables -A INPUT -p UDP --dport 19 -j DROP
+
+echo "Block DDOS - SMBnuke"
+iptables -A INPUT -p UDP --dport 135:139 -j DROP
+iptables -A INPUT -p TCP --dport 135:139 -j DROP
+
+echo "Block DDOS - Connection-flood"
+iptables -A INPUT -p TCP --syn -m iplimit --iplimit-above 3 -j DROP
+
+echo "Block DDOS - Fraggle"
+iptables -A INPUT -p UDP -m pkttype --pkt-type broadcast -j DROP
+iptables -A INPUT -p UDP -m limit --limit 3/s -j ACCEPT
+
+echo "Block DDOS"
+iptables -A INPUT -p ICMP -f -j DROP 
